@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import css from './App.module.css';
@@ -8,75 +8,67 @@ import ImageGallery from './ImageGallery/ImageGallery';
 import Button from 'components/Button/Button';
 import Loader from './Loader/Loader';
 
-class App extends Component {
-  state = {
-    images: [],
-    query: null,
-    page: 1,
-    isLoading: false,
-    error: '',
-    loadMoreBtn: false,
+const App = () => {
+  const [images, setImages] = useState([]);
+  const [query, setQuery] = useState(null);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [loadMoreBtn, setLoadMoreBtn] = useState(false);
+
+  const onSubmit = query => {
+    setQuery(query);
+    setPage(1);
+    setImages([]);
   };
 
-  componentDidUpdate(_, prevState) {
-    if (
-      this.state.query !== prevState.query ||
-      this.state.page !== prevState.page
-    )
-      this.getImages();
-  }
-
-  onSubmit = query => this.setState({ query, page: 1, images: [] });
-
-  onLoadMore = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+  const onLoadMore = () => {
+    setPage(prev => prev + 1);
   };
 
-  getImages = async () => {
-    try {
-      this.setState({ isLoading: true, error: '' });
+  useEffect(() => {
+    if (!query) return;
 
-      const query = this.state.query;
-      const page = this.state.page;
+    const getImages = async () => {
+      try {
+        setIsLoading(true);
 
-      const response = await getAllImages(query, page);
+        setError('');
 
-      this.setState(prevState => ({
-        images: [...prevState.images, ...response.hits],
-        loadMoreBtn: this.state.page < Math.ceil(response.totalHits / 12),
-      }));
-    } catch (error) {
-      console.log(error);
+        const response = await getAllImages(query, page);
 
-      this.setState({ error: error.message });
-    } finally {
-      this.setState({ isLoading: false });
-    }
-  };
+        setImages(prev => [...prev, ...response.hits]);
 
-  render() {
-    const { loadMoreBtn, images, isLoading, error } = this.state;
+        setLoadMoreBtn(page < Math.ceil(response.totalHits / 12));
+      } catch (error) {
+        console.log(error);
 
-    return (
-      <div className={css.app}>
-        <Searchbar onSubmit={this.onSubmit} />
+        setError(error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-        {error && <h1>{error}</h1>}
+    if (query !== '' || page !== 1) getImages();
+  }, [query, page]);
 
-        <ImageGallery images={images} />
+  return (
+    <div className={css.app}>
+      <Searchbar onSubmit={onSubmit} />
 
-        {isLoading && <Loader />}
+      {error && <h1>{error}</h1>}
 
-        {!isLoading && loadMoreBtn && images?.length !== 0 && (
-          <Button onLoadMore={this.onLoadMore} />
-        )}
+      <ImageGallery images={images} />
 
-        <ToastContainer />
-      </div>
-    );
-  }
-}
+      {isLoading && <Loader />}
+
+      {!isLoading && loadMoreBtn && images?.length !== 0 && (
+        <Button onLoadMore={onLoadMore} />
+      )}
+
+      <ToastContainer />
+    </div>
+  );
+};
 
 export default App;
